@@ -163,8 +163,8 @@ def test_transcribe_audio_reports_progress_via_callback(monkeypatch):
     monkeypatch.setitem(sys.modules, "whisper", fake_whisper_pkg)
     monkeypatch.setitem(sys.modules, "whisper.transcribe", fake_whisper_transcribe)
 
-    def fake_model_transcribe(path, fp16):
-        del path, fp16
+    def fake_model_transcribe(path, fp16, verbose=None):
+        del path, fp16, verbose
         # Simula lo que hace Whisper por dentro: usa la tqdm parcheada.
         import whisper.transcribe as wt
 
@@ -238,8 +238,8 @@ def test_transcribe_audio_progress_callback_errors_are_swallowed(monkeypatch):
     monkeypatch.setitem(sys.modules, "whisper", fake_whisper_pkg)
     monkeypatch.setitem(sys.modules, "whisper.transcribe", fake_whisper_transcribe)
 
-    def fake_model_transcribe(path, fp16):
-        del path, fp16
+    def fake_model_transcribe(path, fp16, verbose=None):
+        del path, fp16, verbose
         import whisper.transcribe as wt
 
         with wt.tqdm.tqdm(total=10) as pbar:

@@ -2,12 +2,32 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
+from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
 TranscriptionResult = dict[str, Any]
+
+
+@contextmanager
+def _atomic_output(out_path: str):
+    """Publish complete output only; keep any previous file if writing fails."""
+    destination = Path(out_path)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=destination.parent, delete=False
+        ) as output:
+            temporary_path = Path(output.name)
+            yield output
+        os.replace(temporary_path, destination)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def format_timestamp_srt(seconds: float) -> str:
@@ -34,7 +54,7 @@ def export_txt(base_path: str, result: TranscriptionResult, model_name: str) -> 
     del model_name  # no aplica a este formato; ver docstring
     out_path = f"{base_path}.txt"
     text = result.get("text", "").strip()
-    with open(out_path, "w", encoding="utf-8") as f:
+    with _atomic_output(out_path) as f:
         f.write(text)
     return out_path
 
@@ -50,7 +70,7 @@ def export_md(base_path: str, result: TranscriptionResult, model_name: str) -> s
         f"- **Modelo:** `{model_name}` | "
         f"**Fecha:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n\n---\n\n"
     )
-    with open(out_path, "w", encoding="utf-8") as f:
+    with _atomic_output(out_path) as f:
         f.write(header + text)
     return out_path
 
@@ -60,7 +80,7 @@ def export_srt(base_path: str, result: TranscriptionResult, model_name: str) -> 
     del model_name  # no aplica a este formato
     out_path = f"{base_path}.srt"
     segments = result.get("segments", [])
-    with open(out_path, "w", encoding="utf-8") as f:
+    with _atomic_output(out_path) as f:
         for i, segment in enumerate(segments, start=1):
             start = format_timestamp_srt(segment["start"])
             end = format_timestamp_srt(segment["end"])
@@ -74,7 +94,7 @@ def export_vtt(base_path: str, result: TranscriptionResult, model_name: str) -> 
     del model_name  # no aplica a este formato
     out_path = f"{base_path}.vtt"
     segments = result.get("segments", [])
-    with open(out_path, "w", encoding="utf-8") as f:
+    with _atomic_output(out_path) as f:
         f.write("WEBVTT\n\n")
         for segment in segments:
             start = format_timestamp_vtt(segment["start"])
@@ -103,7 +123,7 @@ def export_json(base_path: str, result: TranscriptionResult, model_name: str) ->
             for seg in result.get("segments", [])
         ],
     }
-    with open(out_path, "w", encoding="utf-8") as f:
+    with _atomic_output(out_path) as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
     return out_path
 

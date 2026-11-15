@@ -107,3 +107,13 @@ def test_resolve_ffmpeg_path_normalizes_saved_relative_path(monkeypatch, tmp_pat
     monkeypatch.setattr(mod, "test_ffmpeg_executable", lambda path: True)
 
     assert resolve_ffmpeg_path("ffmpeg") == str(executable.resolve())
+
+
+def test_selected_ffmpeg_directory_takes_priority_when_already_in_path(monkeypatch, tmp_path):
+    import core.ffmpeg_utils as mod
+
+    folder = str(tmp_path)
+    monkeypatch.setattr(mod, "test_ffmpeg_executable", lambda path: True)
+    monkeypatch.setenv("PATH", mod.os.pathsep.join(["other", folder]))
+    assert register_ffmpeg_path(str(tmp_path / "ffmpeg"))
+    assert mod.os.environ["PATH"].split(mod.os.pathsep) == [folder, "other"]

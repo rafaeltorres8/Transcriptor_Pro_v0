@@ -111,6 +111,13 @@ progreso pueden mostrar rutas de archivos. Su acceso depende de los
 permisos del sistema operativo. Evita compartir resultados o capturas
 que contengan información privada.
 
+Las preferencias y cada exportación se escriben primero en un archivo
+temporal junto al destino. Solo se reemplaza el archivo definitivo cuando
+la escritura termina, conservando la versión anterior si falla. La interfaz
+pide confirmación antes de reemplazar resultados existentes y comprueba
+la carpeta de salida antes de cargar el modelo. Mientras haya una
+transcripción activa, la ventana no se cierra para evitar destruir su hilo.
+
 La comprobación de FFmpeg ejecuta el archivo con `-version`: no verifica
 su firma ni garantiza su procedencia. Selecciona únicamente ejecutables
 de confianza obtenidos desde los enlaces de la web oficial de FFmpeg.

@@ -1,19 +1,17 @@
 from __future__ import annotations
 import os
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from PySide6.QtCore import QCoreApplication, QTimer
 
 from gui.worker import TranscriptionWorker
 
-AUDIO_PATH = "/home/claude/work/test_audio.wav"
-OUTPUT_DIR = "/home/claude/work/integration_output"
-
-
 def fake_load_model(model_name, device):
     class FakeModel:
-        def transcribe(self, path, fp16):
+        def transcribe(self, path, fp16, verbose=None):
             return {
                 "text": "Esta es una transcripción simulada de prueba.",
                 "language": "es",
@@ -27,6 +25,11 @@ def fake_load_model(model_name, device):
 
 
 def run() -> None:
+    with TemporaryDirectory() as directory:
+        _run(str(Path(directory) / "test_audio.wav"), directory)
+
+
+def _run(AUDIO_PATH: str, OUTPUT_DIR: str) -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     app = QCoreApplication(sys.argv)
 
@@ -56,6 +59,7 @@ def run() -> None:
 
         QTimer.singleShot(15000, app.quit)  # salvaguarda anti-cuelgue
         app.exec()
+        assert worker.wait(5000), "El worker no terminó a tiempo"
 
     if "error" in results_holder:
         print(f"❌ FALLÓ: {results_holder['error']}")

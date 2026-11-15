@@ -56,7 +56,10 @@ def register_ffmpeg_path(path: str) -> bool:
     if path != "ffmpeg":
         folder = str(Path(path).resolve().parent)
         current_path = os.environ.get("PATH", "")
-        if folder not in current_path.split(os.pathsep):
-            os.environ["PATH"] = folder + os.pathsep + current_path
+        # The chosen binary's directory must win even if already later in PATH.
+        normalized = os.path.normcase(os.path.normpath(folder))
+        remaining = [entry for entry in current_path.split(os.pathsep)
+                     if os.path.normcase(os.path.normpath(entry)) != normalized]
+        os.environ["PATH"] = os.pathsep.join([folder, *remaining])
 
     return True
