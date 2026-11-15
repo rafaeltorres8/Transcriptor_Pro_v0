@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from pathlib import Path
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
@@ -60,6 +61,9 @@ class MainWindow(QMainWindow):
 
         if self.config.last_output_dir:
             self.file_panel.output_dir_edit.setText(self.config.last_output_dir)
+        # Autodetection emits during FFmpegPanel construction, before connection.
+        if self.ffmpeg_panel.is_ready():
+            self._on_ffmpeg_ready(self.ffmpeg_panel.current_path())
 
     def _on_ffmpeg_ready(self, path: str) -> None:
         """Persiste la ruta de FFmpeg validada en la configuración."""
@@ -101,6 +105,21 @@ class MainWindow(QMainWindow):
         model_name = self.model_panel.selected_model()
         output_dir = self.file_panel.selected_output_dir()
 
+        target_dir = Path(output_dir) if output_dir else Path(audio_path).parent
+        if not target_dir.is_dir():
+            QMessageBox.warning(self, "Carpeta no válida", "Selecciona una carpeta de salida existente.")
+            return
+        existing = [target_dir / f"{Path(audio_path).stem}.{fmt}" for fmt in formats]
+        if any(path.exists() or path.is_symlink() for path in existing):
+            answer = QMessageBox.question(
+                self, "Archivos existentes",
+                "Ya existen resultados con este nombre. ¿Quieres reemplazarlos?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+
         self._persist_preferences(model_name, formats, output_dir)
 
         self.log_panel.clear()
@@ -118,6 +137,7 @@ class MainWindow(QMainWindow):
         self.worker.progress_percent.connect(self.log_panel.set_progress_percent)
         self.worker.finished_ok.connect(self._on_finished_ok)
         self.worker.failed.connect(self._on_failed)
+        self.worker.finished.connect(self._reset_ui_after_run)
         self.worker.start()
 
     def _persist_preferences(self, model_name: str, formats: list[str], output_dir: str) -> None:
@@ -137,16 +157,24 @@ class MainWindow(QMainWindow):
         if failed:
             self.log_panel.append(f"⚠️ No se pudieron generar: {', '.join(failed)}")
 
-        self._reset_ui_after_run()
-
     def _on_failed(self, message: str) -> None:
         """Muestra el error tanto en el log como en un diálogo modal."""
         self.log_panel.append(f"❌ Error: {message}")
         QMessageBox.critical(self, "Error durante la transcripción", message)
-        self._reset_ui_after_run()
 
     def _reset_ui_after_run(self) -> None:
         """Restaura el botón y la barra de progreso a su estado inicial."""
         self.log_panel.set_busy(False)
         self.transcribe_button.setEnabled(True)
         self.transcribe_button.setText("Transcribir")
+
+    def closeEvent(self, event) -> None:
+        """Keep the worker alive until it finishes; never destroy a running QThread."""
+        if self.worker is not None and self.worker.isRunning():
+            QMessageBox.information(
+                self, "Transcripción en curso",
+                "Espera a que termine la transcripción antes de cerrar la aplicación.",
+            )
+            event.ignore()
+            return
+        event.accept()

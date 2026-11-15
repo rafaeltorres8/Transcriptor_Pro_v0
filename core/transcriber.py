@@ -1,11 +1,15 @@
 from __future__ import annotations
 import logging
+from importlib import import_module
+from threading import RLock
+from types import SimpleNamespace
 from contextlib import contextmanager
 from typing import Any, Iterator, Protocol
 
 logger = logging.getLogger(__name__)
 
 VALID_MODELS = ("tiny", "base", "small", "medium", "large", "turbo")
+_TRANSCRIPTION_LOCK = RLock()
 
 
 class ProgressCallback(Protocol):
@@ -101,18 +105,21 @@ def _progress_reporting(callback: ProgressPercentCallback | None) -> Iterator[No
         return
 
     try:
-        import whisper.transcribe as whisper_transcribe_module
+        whisper_transcribe_module = import_module("whisper.transcribe")
     except ImportError:
         logger.debug("whisper.transcribe no disponible; sin progreso detallado.")
         yield
         return
 
-    original_tqdm = whisper_transcribe_module.tqdm.tqdm
-    whisper_transcribe_module.tqdm.tqdm = _make_progress_tqdm(original_tqdm, callback)
+    original_tqdm = whisper_transcribe_module.tqdm
+    # Replace only Whisper's module reference, not the global tqdm package.
+    whisper_transcribe_module.tqdm = SimpleNamespace(
+        tqdm=_make_progress_tqdm(original_tqdm.tqdm, callback)
+    )
     try:
         yield
     finally:
-        whisper_transcribe_module.tqdm.tqdm = original_tqdm
+        whisper_transcribe_module.tqdm = original_tqdm
 
 
 def transcribe_audio(
@@ -127,5 +134,8 @@ def transcribe_audio(
     la transcripción con el porcentaje de avance real (0.0-100.0).
     """
     use_fp16 = device == "cuda"
-    with _progress_reporting(progress_callback):
-        return model.transcribe(audio_path, fp16=use_fp16)
+    # Serialize calls while the module reference is temporarily replaced.
+    with _TRANSCRIPTION_LOCK, _progress_reporting(progress_callback):
+        if progress_callback is None:
+            return model.transcribe(audio_path, fp16=use_fp16)
+        return model.transcribe(audio_path, fp16=use_fp16, verbose=False)

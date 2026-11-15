@@ -76,4 +76,4 @@ class FilePanel(QGroupBox):
     def is_valid(self) -> bool:
         """True si hay una ruta de archivo no vacía y existente en disco."""
         path = self.selected_file()
-        return bool(path) and os.path.exists(path)
+        return bool(path) and os.path.isfile(path)

@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.ffmpeg_utils import register_ffmpeg_path, resolve_ffmpeg_path, test_ffmpeg_executable
+from core.ffmpeg_utils import register_ffmpeg_path, resolve_ffmpeg_path
 
 
 class FFmpegPanel(QGroupBox):
@@ -55,13 +55,12 @@ class FFmpegPanel(QGroupBox):
         if not path:
             return
 
-        if test_ffmpeg_executable(path) and register_ffmpeg_path(path):
-            self._set_ready(path)
-        else:
-            self._set_not_ready(f"El archivo seleccionado no es un FFmpeg válido: {path}")
+        self._set_ready(path)
 
     def _set_ready(self, path: str) -> None:
-        register_ffmpeg_path(path)
+        if not register_ffmpeg_path(path):
+            self._set_not_ready(f"No se pudo ejecutar FFmpeg: {path}")
+            return
         self._current_path = path
         display = "sistema (PATH)" if path == "ffmpeg" else path
         self.status_label.setText(f"✔️ FFmpeg listo: {display}")

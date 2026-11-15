@@ -60,6 +60,8 @@ class TranscriptionWorker(QThread):
                 self.output_formats,
                 output_dir=self.output_dir,
             )
+            if not any(export_results.values()):
+                raise RuntimeError("No se pudo guardar ningún formato de salida.")
 
             self.finished_ok.emit(self.audio_path, export_results)
         except (ValueError, RuntimeError, OSError) as exc:
