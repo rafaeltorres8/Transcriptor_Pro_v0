@@ -11,7 +11,11 @@ FFMPEG_TIMEOUT_SECONDS = 10
 
 
 def test_ffmpeg_executable(path: str) -> bool:
-    """Verifica si un ejecutable de FFmpeg responde correctamente a `-version`."""
+    """Comprueba que el ejecutable termina con éxito al recibir `-version`.
+
+    Esta prueba ejecuta el archivo; no acredita su identidad ni su procedencia.
+    Solo deben usarse ejecutables de confianza.
+    """
     if not path:
         return False
     try:
@@ -32,11 +36,11 @@ def resolve_ffmpeg_path(saved_path: str = "") -> str:
     del usuario. Devuelve cadena vacía si no se encuentra ninguna.
     """
     if saved_path and os.path.exists(saved_path) and test_ffmpeg_executable(saved_path):
-        return saved_path
+        return str(Path(saved_path).resolve())
 
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg and test_ffmpeg_executable(system_ffmpeg):
-        return "ffmpeg"
+        return str(Path(system_ffmpeg).resolve())
 
     return ""
 

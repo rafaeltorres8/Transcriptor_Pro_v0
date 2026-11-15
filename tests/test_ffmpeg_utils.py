@@ -47,14 +47,15 @@ def test_resolve_ffmpeg_path_uses_valid_saved_path(monkeypatch, tmp_path):
     assert result == str(fake_ffmpeg)
 
 
-def test_resolve_ffmpeg_path_falls_back_to_system_path(monkeypatch):
+def test_resolve_ffmpeg_path_falls_back_to_system_path(monkeypatch, tmp_path):
     import core.ffmpeg_utils as mod
 
-    monkeypatch.setattr(mod.shutil, "which", lambda name: "/usr/bin/ffmpeg")
-    monkeypatch.setattr(mod, "test_ffmpeg_executable", lambda p: p == "/usr/bin/ffmpeg")
+    executable = str(tmp_path / "ffmpeg")
+    monkeypatch.setattr(mod.shutil, "which", lambda name: executable)
+    monkeypatch.setattr(mod, "test_ffmpeg_executable", lambda p: p == executable)
 
     result = resolve_ffmpeg_path(saved_path="")
-    assert result == "ffmpeg"
+    assert result == executable
 
 
 def test_resolve_ffmpeg_path_returns_empty_when_nothing_found(monkeypatch):
@@ -95,3 +96,14 @@ def test_register_ffmpeg_path_custom_path_prepends_to_path(monkeypatch, tmp_path
 
     assert register_ffmpeg_path(str(fake_ffmpeg)) is True
     assert str(tmp_path) in mod.os.environ["PATH"].split(mod.os.pathsep)
+
+
+def test_resolve_ffmpeg_path_normalizes_saved_relative_path(monkeypatch, tmp_path):
+    import core.ffmpeg_utils as mod
+
+    executable = tmp_path / "ffmpeg"
+    executable.write_text("placeholder")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(mod, "test_ffmpeg_executable", lambda path: True)
+
+    assert resolve_ffmpeg_path("ffmpeg") == str(executable.resolve())

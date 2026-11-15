@@ -55,7 +55,7 @@ transcriptor_pro/
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── pyproject.toml
-└── .pylintrc
+└── .gitignore
 ```
 
 ## Instalación
@@ -86,6 +86,38 @@ la interfaz te pedirá que selecciones manualmente el ejecutable la primera
 vez, y recordará esa ruta en las siguientes ejecuciones.
 
 - Descarga oficial: https://ffmpeg.org/download.html
+
+## Seguridad y privacidad
+
+La aplicación no implementa cuentas, sesiones ni autenticación y no necesita
+claves de la API de OpenAI. Usa Whisper en el equipo para transcribir;
+el código de la aplicación no envía el audio a una API de transcripción.
+
+Al cargar un modelo que no esté disponible en la caché, Whisper puede
+descargar sus pesos por red. Con el modelo ya descargado, la transcripción
+se realiza localmente. La descarga y su verificación las gestiona la
+[dependencia Whisper](https://github.com/openai/whisper/blob/main/whisper/__init__.py).
+La instalación de dependencias también puede requerir conexión.
+
+Las preferencias se guardan como JSON sin cifrado propio en
+`%APPDATA%/TranscriptorPro/config.json` en Windows o en
+`$XDG_CONFIG_HOME/TranscriptorPro/config.json` (por defecto,
+`~/.config/TranscriptorPro/config.json`) en macOS/Linux. Solo contienen
+la ruta de FFmpeg, el modelo, los formatos y la carpeta de salida;
+no se deben añadir contraseñas ni tokens a ese archivo.
+
+Las transcripciones se exportan sin cifrado propio y los mensajes de
+progreso pueden mostrar rutas de archivos. Su acceso depende de los
+permisos del sistema operativo. Evita compartir resultados o capturas
+que contengan información privada.
+
+La comprobación de FFmpeg ejecuta el archivo con `-version`: no verifica
+su firma ni garantiza su procedencia. Selecciona únicamente ejecutables
+de confianza obtenidos desde los enlaces de la web oficial de FFmpeg.
+La detección automática conserva la ruta absoluta encontrada; Whisper
+localiza FFmpeg mediante el `PATH` del proceso, al que la aplicación añade
+la carpeta del ejecutable seleccionado. Esto no impide que otro programa
+sustituya un ejecutable si tiene permisos para modificarlo.
 
 ## Uso
 
